@@ -1,6 +1,6 @@
 import { openDB, IDBPDatabase } from 'idb';
-import type { MentalHealthEntry, EncryptedEntry, StorageConfig } from '@/types/entry';
-import { encryptEntry, decryptEntry, generateSalt } from '@/lib/crypto/encryption';
+import type { JournalEntry, StorageConfig } from '@/types/journal';
+import { encryptEntry, decryptEntry, generateSalt, hashPIN } from '@/lib/crypto/encryption';
 
 const DB_NAME = 'mental-health-pwa';
 const DB_VERSION = 1;
@@ -9,7 +9,6 @@ const CONFIG_STORE = 'config';
 
 let dbInstance: IDBPDatabase | null = null;
 
-// Helper to convert Uint8Array to/from storage format
 function serializeUint8Array(arr: Uint8Array): number[] {
     return Array.from(arr);
 }
@@ -25,7 +24,7 @@ async function getDB(): Promise<IDBPDatabase> {
         upgrade(db) {
             if (!db.objectStoreNames.contains(ENTRIES_STORE)) {
                 const entriesStore = db.createObjectStore(ENTRIES_STORE, { keyPath: 'id' });
-                entriesStore.createIndex('createdAt', 'createdAt');
+                entriesStore.createIndex('timestamp', 'timestamp');
             }
             if (!db.objectStoreNames.contains(CONFIG_STORE)) {
                 db.createObjectStore(CONFIG_STORE);
@@ -36,7 +35,8 @@ async function getDB(): Promise<IDBPDatabase> {
     return dbInstance;
 }
 
-export async function saveEntry(entry: MentalHealthEntry, pin: string): Promise<void> {
+export async function saveEntry(entry: JournalEntry, pin: string): Promise<void> {
+    console.log('💾 Saving entry...');
     const db = await getDB();
     const config = await getConfig();
 
@@ -49,34 +49,40 @@ export async function saveEntry(entry: MentalHealthEntry, pin: string): Promise<
         encryptedData: serializeUint8Array(new Uint8Array(encryptedData)),
         iv: serializeUint8Array(iv),
         salt: serializeUint8Array(config.salt),
-        createdAt: entry.timestamp.toISOString()
+        timestamp: entry.timestamp
     };
 
     await db.put(ENTRIES_STORE, encryptedEntry);
-
-    if (config.backupEnabled) {
-        await backupToServer(encryptedEntry);
-    }
+    console.log('✅ Entry saved');
 }
 
-export async function getAllEntries(pin: string): Promise<MentalHealthEntry[]> {
+export async function getAllEntries(pin: string): Promise<JournalEntry[]> {
+    console.log('📖 Loading entries...');
     const db = await getDB();
     const config = await getConfig();
 
     if (!config) throw new Error('PIN not configured');
 
-    const encryptedEntries = await db.getAllFromIndex(ENTRIES_STORE, 'createdAt');
+    const encryptedEntries = await db.getAllFromIndex(ENTRIES_STORE, 'timestamp');
 
     const decryptedEntries = await Promise.all(
         encryptedEntries.reverse().map(async (entry: any) => {
             const encryptedData = new Uint8Array(entry.encryptedData).buffer;
             const iv = deserializeUint8Array(entry.iv);
             const decrypted = await decryptEntry(encryptedData, iv, pin, config.salt);
-            return decrypted as MentalHealthEntry;
+            return decrypted as JournalEntry;
         })
     );
 
+    console.log(`✅ Loaded ${decryptedEntries.length} entries`);
     return decryptedEntries;
+}
+
+export async function deleteEntry(entryId: string): Promise<void> {
+    console.log('🗑️ Deleting entry:', entryId);
+    const db = await getDB();
+    await db.delete(ENTRIES_STORE, entryId);
+    console.log('✅ Entry deleted');
 }
 
 export async function getConfig(): Promise<StorageConfig | null> {
@@ -85,7 +91,6 @@ export async function getConfig(): Promise<StorageConfig | null> {
 
     if (!storedConfig) return null;
 
-    // Deserialize Uint8Array from storage
     return {
         pinHash: storedConfig.pinHash,
         salt: deserializeUint8Array(storedConfig.salt),
@@ -95,7 +100,6 @@ export async function getConfig(): Promise<StorageConfig | null> {
 
 export async function saveConfig(config: StorageConfig): Promise<void> {
     const db = await getDB();
-    // Serialize Uint8Array for storage
     const serializableConfig = {
         pinHash: config.pinHash,
         salt: serializeUint8Array(config.salt),
@@ -106,7 +110,6 @@ export async function saveConfig(config: StorageConfig): Promise<void> {
 
 export async function initializeStorage(pin: string): Promise<void> {
     const salt = generateSalt();
-    const { hashPIN } = await import('@/lib/crypto/encryption');
     const pinHash = await hashPIN(pin, salt);
 
     const config: StorageConfig = {
@@ -116,24 +119,6 @@ export async function initializeStorage(pin: string): Promise<void> {
     };
 
     await saveConfig(config);
-}
-
-async function backupToServer(entry: any): Promise<void> {
-    try {
-        await fetch('/api/backup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                id: entry.id,
-                encryptedData: entry.encryptedData,
-                iv: entry.iv,
-                salt: entry.salt,
-                createdAt: entry.createdAt
-            })
-        });
-    } catch (error) {
-        console.error('Backup failed:', error);
-    }
 }
 
 export async function clearAllData(): Promise<void> {

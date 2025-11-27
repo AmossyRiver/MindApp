@@ -1,9 +1,13 @@
-export interface MentalHealthEntry {
+export type Mood = 'great' | 'good' | 'okay' | 'bad' | 'terrible';
+
+export interface JournalEntry {
     id: string;
-    mood: string; // emoji or mood identifier
+    mood: Mood;
     comment: string;
+    date: string; // ISO string (YYYY-MM-DD)
+    time: string; // HH:mm format
     weather: WeatherData;
-    timestamp: Date;
+    timestamp: number;
 }
 
 export interface WeatherData {
@@ -25,3 +29,6 @@ export interface StorageConfig {
     salt: Uint8Array;
     backupEnabled: boolean;
 }
+
+// Legacy alias for backward compatibility (if needed)
+export type MentalHealthEntry = JournalEntry;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { isPINSet, setupPIN, validatePIN } from '@/lib/pin/pin';
 import { saveEntry, getAllEntries, clearAllData } from '@/lib/storage/storage';
-import type { MentalHealthEntry } from '@/types/entry';
+import type { MentalHealthEntry } from '@/types/journal';
 
 export default function TestCryptoPage() {
     const [status, setStatus] = useState('');
