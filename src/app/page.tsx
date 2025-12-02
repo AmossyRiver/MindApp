@@ -136,6 +136,13 @@ export default function HomePage() {
                     >
                         Logout
                     </button>
+
+                    <button
+                        onClick={() => router.push('/viewer')}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
+                    >
+                        🔓 Viewer
+                    </button>
                 </div>
             </header>
 
@@ -182,7 +189,7 @@ export default function HomePage() {
                                 }`}
                             >
                                 <span className="text-4xl">{mood.emoji}</span>
-                                <span className="text-xs font-semibold">{mood.label}</span>
+                                <span className="text-xs font-semibold text-gray-800">{mood.label}</span>
                             </button>
                         ))}
                     </div>
@@ -194,10 +201,10 @@ export default function HomePage() {
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         placeholder="Describe your feelings, what happened today, or any thoughts you'd like to capture..."
-                        className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
                         maxLength={500}
                     />
-                    <div className="mt-2 text-right text-sm text-gray-500">
+                    <div className="mt-2 text-right text-sm text-gray-700">
                         {comment.length}/500
                     </div>
                 </div>
@@ -216,7 +223,13 @@ export default function HomePage() {
                     >
                         View History
                     </button>
+                    <button
+                    onClick={() => router.push('/share')}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-semibold transition-all shadow-md">
+                    📤 Share Data
+                </button>
                 </div>
+
 
                 <div className="mt-8 text-center text-sm text-gray-600">
                     <p>🔐 All entries are encrypted and stored locally on your device</p>
